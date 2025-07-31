@@ -9,8 +9,8 @@ metadata:
     en_US: Analyze GitHub repositories and answer questions about code
     zh_Hans: 分析 GitHub 代码仓库并回答代码相关问题
   version: 1.0.0
-  author: RockChinQ
-  homepage: https://github.com/RockChinQ/LangBot-RepoInsight-Plugin
+  author: oGYCo
+  homepage: https://github.com/oGYCo/GithubBot
   keywords:
     - github
     - code
@@ -41,10 +41,10 @@ spec:
           label:
             en_US: Azure OpenAI
             zh_Hans: Azure OpenAI
-        - value: deepseek
+        - value: qwen
           label:
-            en_US: DeepSeek
-            zh_Hans: DeepSeek
+            en_US: Qwen
+            zh_Hans: 通义千问
     - id: embedding_model
       name: embedding_model
       label:
@@ -69,6 +69,9 @@ spec:
       type: string
       required: false
       default: ""
+      description:
+        en_US: "Base URL for embedding API. Leave empty for default URLs: OpenAI (https://api.openai.com/v1), Qwen (https://dashscope.aliyuncs.com/api/v1)"
+        zh_Hans: "向量模型API基础URL。留空使用默认URL：OpenAI (https://api.openai.com/v1)，Qwen (https://dashscope.aliyuncs.com/api/v1)"
     - id: llm_provider
       name: llm_provider
       label:
@@ -90,6 +93,10 @@ spec:
           label:
             en_US: DeepSeek
             zh_Hans: DeepSeek
+        - value: qwen
+          label:
+            en_US: Qwen
+            zh_Hans: 通义千问
     - id: llm_model
       name: llm_model
       label:
@@ -114,6 +121,9 @@ spec:
       type: string
       required: false
       default: ""
+      description:
+        en_US: "Base URL for LLM API. Leave empty for default URLs: OpenAI (https://api.openai.com/v1), DeepSeek (https://api.deepseek.com), Qwen (https://dashscope.aliyuncs.com/api/v1)"
+        zh_Hans: "语言模型API基础URL。留空使用默认URL：OpenAI (https://api.openai.com/v1)，DeepSeek (https://api.deepseek.com)，Qwen (https://dashscope.aliyuncs.com/api/v1)"
     - id: llm_temperature
       name: llm_temperature
       label:
