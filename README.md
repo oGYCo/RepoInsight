@@ -27,7 +27,7 @@ RepoInsight 是一个为 LangBot 设计的智能GitHub仓库分析插件。它�
 
 1. 在LangBot中发送以下命令：
 ```
-!plugin get https://github.com/your-username/RepoInsight
+!plugin get https://github.com/oGYCo/RepoInsight
 ```
 
 ### 方法二：手动安装

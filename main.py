@@ -45,7 +45,7 @@ class ConfigManager:
         """获取默认配置"""
         return {
             "github_bot_api": {
-                "base_url": "http://localhost:8000",
+                "base_url": "http://github_bot_api:8000",
                 "timeout": 30,
                 "retry_attempts": 3,
                 "retry_delay": 5
@@ -230,7 +230,7 @@ class StateManager:
 
 # GithubBot API 客户端
 class GithubBotClient:
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self, base_url: str = "http://github_bot_api:8000"):
         self.base_url = base_url
         self.session = None
     
@@ -654,7 +654,7 @@ class RepoInsightPlugin(BasePlugin):
         
         # 初始化组件
         db_path = self.config.get('database.path', 'repo_insight.db')
-        github_base_url = self.config.get('github_bot_api.base_url', 'http://localhost:8000')
+        github_base_url = self.config.get('github_bot_api.base_url', 'http://github_bot_api:8000')
         
         self.state_manager = StateManager(db_path)
         self.github_client = GithubBotClient(github_base_url)

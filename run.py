@@ -65,7 +65,7 @@ def check_dependencies():
 async def test_github_bot_connection(config):
     """测试GithubBot连接"""
     github_config = config.get('github_bot', {})
-    base_url = github_config.get('base_url', 'http://localhost:8000')
+    base_url = github_config.get('base_url', 'http://github_bot_api:8000')
     
     client = GithubBotClient(base_url)
     

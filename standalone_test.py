@@ -97,7 +97,7 @@ async def test_basic_functionality():
     # 测试配置管理器
     print("\n1. 测试配置管理器...")
     config = ConfigManager()
-    base_url = config.get('github_bot_api.base_url', 'http://localhost:8000')
+    base_url = config.get('github_bot_api.base_url', 'http://github_bot_api:8000')
     print(f"   GithubBot API URL: {base_url}")
     
     # 测试状态管理器
