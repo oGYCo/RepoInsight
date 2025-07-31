@@ -244,7 +244,7 @@ class GithubBotClient:
         """健康检查"""
         try:
             session = await self._get_session()
-            async with session.get(f"{self.base_url}/api/health") as response:
+            async with session.get(f"{self.base_url}/health") as response:
                 return response.status == 200
         except Exception as e:
             logger.error(f"Health check failed: {e}")
