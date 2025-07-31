@@ -15,6 +15,13 @@ from typing import Dict, Optional, Any, List
 from urllib.parse import urlparse
 from enum import Enum
 
+# 先设置基础日志配置
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 # 配置管理器
 class ConfigManager:
     def __init__(self, config_path: str = "config.yaml"):
@@ -82,14 +89,8 @@ class ConfigManager:
                 return default
         return value
 
-# 初始化配置和日志
+# 初始化配置
 config_manager = ConfigManager()
-logging_config = config_manager.get('logging', {})
-logging.basicConfig(
-    level=getattr(logging, logging_config.get('level', 'INFO')),
-    format=logging_config.get('format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-)
-logger = logging.getLogger(__name__)
 
 # 枚举定义
 class UserState(Enum):
