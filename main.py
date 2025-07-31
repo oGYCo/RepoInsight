@@ -1,6 +1,6 @@
 from pkg.plugin.context import register, handler, BasePlugin, APIHost, EventContext
 from pkg.plugin.events import *
-import pkg.platform.types as platform_types
+from pkg.platform.types import *
 
 import asyncio
 import aiohttp
@@ -632,8 +632,8 @@ class TaskScheduler:
             adapters = self.plugin_instance.host.get_platform_adapters()
             if adapters:
                 adapter = adapters[0]  # 使用第一个可用的适配器
-                message_chain = platform_types.MessageChain([
-                    platform_types.Plain(message)
+                message_chain = MessageChain([
+                    Plain(message)
                 ])
                 await self.plugin_instance.host.send_active_message(
                     adapter=adapter,
