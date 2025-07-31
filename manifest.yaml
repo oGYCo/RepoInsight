@@ -30,7 +30,7 @@ spec:
         en_US: Choose the embedding model provider
         zh_Hans: 选择向量模型提供商
       type: string  # 配置项类型，支持 string, integer, float, boolean 等
-      default: 'openai'  # 配置项默认值
+      default: 'qwen'  # 配置项默认值
       required: true  # 配置项是否必填
     - name: embedding_model
       label:
@@ -40,7 +40,7 @@ spec:
         en_US: The embedding model to use
         zh_Hans: 使用的向量模型
       type: string
-      default: 'text-embedding-3-small'
+      default: 'text-embedding-v4'
       required: true
     - name: embedding_api_key
       label:
@@ -60,7 +60,7 @@ spec:
         en_US: Choose the LLM provider
         zh_Hans: 选择语言模型提供商
       type: string
-      default: 'openai'
+      default: 'qwen'
       required: true
     - name: llm_model
       label:
@@ -70,7 +70,7 @@ spec:
         en_US: The LLM model to use
         zh_Hans: 使用的语言模型
       type: string
-      default: 'gpt-4o-mini'
+      default: 'qwen-plus'
       required: true
     - name: llm_api_key
       label:
@@ -90,7 +90,7 @@ spec:
         en_US: Maximum tokens for LLM response
         zh_Hans: 语言模型响应的最大令牌数
       type: integer
-      default: 4096
+      default: 9000
       required: true
     - name: llm_temperature
       label:
