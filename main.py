@@ -689,7 +689,7 @@ class TaskScheduler:
         """发送消息给用户"""
         try:
             adapters = self.plugin_instance.host.get_platform_adapters()
-            if adapters:
+            if adapters and len(adapters) > 0:
                 adapter = adapters[0]  # 使用第一个可用的适配器
                 message_chain = MessageChain([
                     Plain(message)
@@ -700,6 +700,8 @@ class TaskScheduler:
                     target_id=user_id,
                     message=message_chain
                 )
+            else:
+                logger.warning(f"No platform adapters available to send message to user {user_id}")
         except Exception as e:
             logger.error(f"Send message to user {user_id} failed: {e}")
 
