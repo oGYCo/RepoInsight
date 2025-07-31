@@ -16,18 +16,20 @@ user_session:
 
 # Default Embedding Configuration
 default_embedding_config:
-  provider: "openai"
-  model: "text-embedding-ada-002"
-  api_key: "your-openai-api-key"
+  provider: "qwen"
+  model: "text-embedding-v4"
+  api_key: ""
+  api_base: ""
   max_tokens: 8192
   chunk_size: 1000
   chunk_overlap: 200
 
 # Default LLM Configuration
 default_llm_config:
-  provider: "openai"
-  model: "gpt-4"
-  api_key: "your-openai-api-key"
+  provider: "qwen"
+  model: "qwen-plus"
+  api_key: ""
+  api_base: ""
   max_tokens: 4096
   temperature: 0.7
   generation_mode: "balanced"

@@ -673,23 +673,29 @@ class RepoInsightPlugin(BasePlugin):
     
     def get_embedding_config(self):
         """获取向量模型配置"""
+        # 从配置文件的 default_embedding_config 部分读取
+        default_config = self.get_config("default_embedding_config", {})
         return {
-            "provider": self.get_config("embedding_provider", "openai"),
-            "model": self.get_config("embedding_model", "text-embedding-3-small"),
-            "api_key": self.get_config("embedding_api_key", ""),
-            "base_url": self.get_config("embedding_base_url", ""),
-            "max_tokens": self.get_config("max_tokens", 8000),
-            "chunk_size": self.get_config("chunk_size", 1000),
-            "chunk_overlap": self.get_config("chunk_overlap", 200)
+            "provider": default_config.get("provider", "openai"),
+            "model_name": default_config.get("model", "text-embedding-3-small"),
+            "api_key": default_config.get("api_key", ""),
+            "api_base": default_config.get("api_base", ""),
+            "max_tokens": default_config.get("max_tokens", 8000),
+            "chunk_size": default_config.get("chunk_size", 1000),
+            "chunk_overlap": default_config.get("chunk_overlap", 200)
         }
     
     def get_llm_config(self):
         """获取语言模型配置"""
+        # 从配置文件的 default_llm_config 部分读取
+        default_config = self.get_config("default_llm_config", {})
         return {
-            "provider": self.get_config("llm_provider", "openai"),
-            "model": self.get_config("llm_model", "gpt-4o-mini"),
-            "api_key": self.get_config("llm_api_key", ""),
-            "base_url": self.get_config("llm_base_url", "")
+            "provider": default_config.get("provider", "openai"),
+            "model_name": default_config.get("model", "gpt-4o-mini"),
+            "api_key": default_config.get("api_key", ""),
+            "api_base": default_config.get("api_base", ""),
+            "temperature": default_config.get("temperature", 0.7),
+            "max_tokens": default_config.get("max_tokens", 1000)
         }
     
     def get_generation_mode(self):
