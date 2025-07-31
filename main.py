@@ -638,7 +638,7 @@ class TaskScheduler:
                     adapter=adapter,
                     target_type="person",
                     target_id=user_id,
-                    message_chain=message_chain
+                    message=message_chain
                 )
         except Exception as e:
             logger.error(f"Send message to user {user_id} failed: {e}")
