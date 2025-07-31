@@ -69,30 +69,6 @@ spec:
       type: string
       required: false
       default: ""
-    - id: max_tokens
-      name: max_tokens
-      label:
-        en_US: Max Tokens
-        zh_Hans: 最大令牌数
-      type: integer
-      required: true
-      default: 8000
-    - id: chunk_size
-      name: chunk_size
-      label:
-        en_US: Chunk Size
-        zh_Hans: 文本块大小
-      type: integer
-      required: true
-      default: 1000
-    - id: chunk_overlap
-      name: chunk_overlap
-      label:
-        en_US: Chunk Overlap
-        zh_Hans: 文本块重叠
-      type: integer
-      required: true
-      default: 200
     - id: llm_provider
       name: llm_provider
       label:
@@ -138,6 +114,22 @@ spec:
       type: string
       required: false
       default: ""
+    - id: llm_temperature
+      name: llm_temperature
+      label:
+        en_US: LLM Temperature
+        zh_Hans: 语言模型温度
+      type: float
+      required: true
+      default: 0.7
+    - id: llm_max_tokens
+      name: llm_max_tokens
+      label:
+        en_US: LLM Max Tokens
+        zh_Hans: 语言模型最大令牌数
+      type: integer
+      required: true
+      default: 4096
     - id: generation_mode
       name: generation_mode
       label:
