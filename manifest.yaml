@@ -1,199 +1,164 @@
 apiVersion: v1
 kind: Plugin
 metadata:
-  name: RepoInsight
-  label:
-    en_US: RepoInsight
-    zh_Hans: 代码仓库洞察
-  description:
+  # author 和 name 唯一确定一个插件
+  author: oGYCo  # 插件作者
+  name: RepoInsight  # 插件名称
+  repository: 'https://github.com/oGYCo/GithubBot'  # 插件仓库地址
+  version: 1.0.0  # 插件版本
+  description:  # 插件简介，支持多语言
     en_US: Analyze GitHub repositories and answer questions about code
     zh_Hans: 分析 GitHub 代码仓库并回答代码相关问题
-  version: 1.0.0
-  author: oGYCo
-  homepage: https://github.com/oGYCo/GithubBot
-  keywords:
-    - github
-    - code
-    - analysis
-    - repository
+  label:  # 插件显示名称，支持多语言
+    en_US: RepoInsight
+    zh_Hans: 代码仓库洞察
 execution:
   python:
-    path: main.py
+    path: main.py  # 插件主程序路径，必须与上方插件入口代码的文件名相同
+    attr: RepoInsightPlugin  # 插件类名，必须与上方代码中声明的类名相同
 dependencies:
   - httpx>=0.24.0
   - pyyaml>=6.0
 spec:
+  # 插件配置（可选），可配置多项
   config:
-    - id: embedding_provider
-      name: embedding_provider
-      label:
+    - name: embedding_provider  # 配置项名称
+      label:  # 配置项显示名称，支持多语言
         en_US: Embedding Provider
         zh_Hans: 向量模型提供商
-      type: select
-      required: true
-      default: openai
-      options:
-        - value: openai
-          label:
-            en_US: OpenAI
-            zh_Hans: OpenAI
-        - value: azure
-          label:
-            en_US: Azure OpenAI
-            zh_Hans: Azure OpenAI
-        - value: qwen
-          label:
-            en_US: Qwen
-            zh_Hans: 通义千问
-    - id: embedding_model
-      name: embedding_model
+      description:  # 配置项描述，支持多语言
+        en_US: Choose the embedding model provider
+        zh_Hans: 选择向量模型提供商
+      type: string  # 配置项类型，支持 string, integer, float, boolean 等
+      default: 'openai'  # 配置项默认值
+      required: true  # 配置项是否必填
+    - name: embedding_model
       label:
         en_US: Embedding Model
         zh_Hans: 向量模型
+      description:
+        en_US: The embedding model to use
+        zh_Hans: 使用的向量模型
       type: string
+      default: 'text-embedding-3-small'
       required: true
-      default: text-embedding-3-small
-    - id: embedding_api_key
-      name: embedding_api_key
+    - name: embedding_api_key
       label:
         en_US: Embedding API Key
         zh_Hans: 向量模型 API 密钥
-      type: string
-      required: true
-      default: ""
-    - id: embedding_base_url
-      name: embedding_base_url
-      label:
-        en_US: Embedding Base URL
-        zh_Hans: 向量模型基础 URL
-      type: string
-      required: false
-      default: ""
       description:
-        en_US: "Base URL for embedding API. Leave empty for default URLs: OpenAI (https://api.openai.com/v1), Qwen (https://dashscope.aliyuncs.com/api/v1)"
-        zh_Hans: "向量模型API基础URL。留空使用默认URL：OpenAI (https://api.openai.com/v1)，Qwen (https://dashscope.aliyuncs.com/api/v1)"
-    - id: llm_provider
-      name: llm_provider
+        en_US: API key for embedding service
+        zh_Hans: 向量模型服务的 API 密钥
+      type: string
+      default: ''
+      required: true
+    - name: llm_provider
       label:
         en_US: LLM Provider
         zh_Hans: 语言模型提供商
-      type: select
+      description:
+        en_US: Choose the LLM provider
+        zh_Hans: 选择语言模型提供商
+      type: string
+      default: 'openai'
       required: true
-      default: openai
-      options:
-        - value: openai
-          label:
-            en_US: OpenAI
-            zh_Hans: OpenAI
-        - value: azure
-          label:
-            en_US: Azure OpenAI
-            zh_Hans: Azure OpenAI
-        - value: deepseek
-          label:
-            en_US: DeepSeek
-            zh_Hans: DeepSeek
-        - value: qwen
-          label:
-            en_US: Qwen
-            zh_Hans: 通义千问
-    - id: llm_model
-      name: llm_model
+    - name: llm_model
       label:
         en_US: LLM Model
         zh_Hans: 语言模型
+      description:
+        en_US: The LLM model to use
+        zh_Hans: 使用的语言模型
       type: string
+      default: 'gpt-4o-mini'
       required: true
-      default: gpt-4o-mini
-    - id: llm_api_key
-      name: llm_api_key
+    - name: llm_api_key
       label:
         en_US: LLM API Key
         zh_Hans: 语言模型 API 密钥
-      type: string
-      required: true
-      default: ""
-    - id: llm_base_url
-      name: llm_base_url
-      label:
-        en_US: LLM Base URL
-        zh_Hans: 语言模型基础 URL
-      type: string
-      required: false
-      default: ""
       description:
-        en_US: "Base URL for LLM API. Leave empty for default URLs: OpenAI (https://api.openai.com/v1), DeepSeek (https://api.deepseek.com), Qwen (https://dashscope.aliyuncs.com/api/v1)"
-        zh_Hans: "语言模型API基础URL。留空使用默认URL：OpenAI (https://api.openai.com/v1)，DeepSeek (https://api.deepseek.com)，Qwen (https://dashscope.aliyuncs.com/api/v1)"
-    - id: llm_temperature
-      name: llm_temperature
-      label:
-        en_US: LLM Temperature
-        zh_Hans: 语言模型温度
-      type: float
+        en_US: API key for LLM service
+        zh_Hans: 语言模型服务的 API 密钥
+      type: string
+      default: ''
       required: true
-      default: 0.7
-    - id: llm_max_tokens
-      name: llm_max_tokens
+    - name: llm_max_tokens
       label:
         en_US: LLM Max Tokens
         zh_Hans: 语言模型最大令牌数
+      description:
+        en_US: Maximum tokens for LLM response
+        zh_Hans: 语言模型响应的最大令牌数
       type: integer
-      required: true
       default: 4096
-    - id: generation_mode
-      name: generation_mode
+      required: true
+    - name: llm_temperature
+      label:
+        en_US: LLM Temperature
+        zh_Hans: 语言模型温度
+      description:
+        en_US: Temperature for LLM generation
+        zh_Hans: 语言模型生成的温度参数
+      type: float
+      default: 0.7
+      required: true
+    - name: generation_mode
       label:
         en_US: Generation Mode
         zh_Hans: 生成模式
-      type: select
+      description:
+        en_US: Choose generation mode (service or plugin)
+        zh_Hans: 选择生成模式（服务端或插件端）
+      type: string
+      default: 'service'
       required: true
-      default: service
-      options:
-        - value: service
-          label:
-            en_US: Service (Use GithubBot backend)
-            zh_Hans: 服务端 (使用 GithubBot 后端)
-        - value: plugin
-          label:
-            en_US: Plugin (Use LangBot LLM)
-            zh_Hans: 插件端 (使用 LangBot 语言模型)
-    - id: githubbot_base_url
-      name: githubbot_base_url
+    - name: githubbot_base_url
       label:
         en_US: GithubBot Base URL
         zh_Hans: GithubBot 基础 URL
+      description:
+        en_US: Base URL for GithubBot API service
+        zh_Hans: GithubBot API 服务的基础 URL
       type: string
+      default: 'http://api:8000'
       required: true
-      default: http://api:8000
-    - id: database_path
-      name: database_path
+    - name: database_path
       label:
         en_US: Database Path
         zh_Hans: 数据库路径
+      description:
+        en_US: Path to the SQLite database file
+        zh_Hans: SQLite 数据库文件路径
       type: string
+      default: 'repo_insight.db'
       required: true
-      default: repo_insight.db
-    - id: enable_private_chat
-      name: enable_private_chat
+    - name: enable_private_chat
       label:
         en_US: Enable Private Chat
         zh_Hans: 启用私聊功能
+      description:
+        en_US: Enable plugin in private chat
+        zh_Hans: 在私聊中启用插件
       type: boolean
-      required: true
       default: true
-    - id: enable_group_chat
-      name: enable_group_chat
+      required: false
+    - name: enable_group_chat
       label:
         en_US: Enable Group Chat
         zh_Hans: 启用群聊功能
+      description:
+        en_US: Enable plugin in group chat
+        zh_Hans: 在群聊中启用插件
       type: boolean
-      required: true
       default: true
-    - id: require_mention_in_group
-      name: require_mention_in_group
+      required: false
+    - name: require_mention_in_group
       label:
         en_US: Require Mention in Group
         zh_Hans: 群聊中需要@机器人
+      description:
+        en_US: Require mention in group chat
+        zh_Hans: 群聊中需要@机器人才响应
       type: boolean
-      required: true
       default: true
+      required: false
