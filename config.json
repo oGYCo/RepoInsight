@@ -1,0 +1,28 @@
+{
+  "github_bot": {
+    "base_url": "http://localhost:8000",
+    "timeout": 30,
+    "retry_attempts": 3,
+    "retry_delay": 5
+  },
+  "database": {
+    "path": "repo_insight.db",
+    "cleanup_hours": 24
+  },
+  "polling": {
+    "analysis_interval": 10,
+    "query_interval": 5,
+    "cleanup_interval": 3600
+  },
+  "limits": {
+    "max_question_length": 1000,
+    "max_sessions_per_user": 5,
+    "session_timeout_hours": 24
+  },
+  "features": {
+    "enable_group_chat": true,
+    "enable_private_chat": true,
+    "require_mention_in_group": true,
+    "auto_cleanup": true
+  }
+}
