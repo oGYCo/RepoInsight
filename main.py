@@ -698,7 +698,7 @@ class RepoInsightPlugin(BasePlugin):
     
     def get_githubbot_base_url(self):
         """获取 GithubBot 基础 URL"""
-        return self.get_config("githubbot_base_url", "http://localhost:8000")
+        return self.get_config("githubbot_base_url", "http://api:8000")
     
     def update_config(self, new_config: dict):
         """更新插件配置"""

@@ -92,7 +92,7 @@ RepoInsight 是一个为 LangBot 设计的智能GitHub仓库分析插件。它�
 ```yaml
 # GithubBot API Configuration
 github_bot_api:
-  base_url: "http://localhost:8000"
+  base_url: "http://api:8000"
   timeout: 30
   retry_attempts: 3
   retry_delay: 5

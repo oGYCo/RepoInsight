@@ -162,7 +162,7 @@ spec:
         zh_Hans: GithubBot 基础 URL
       type: string
       required: true
-      default: http://localhost:8000
+      default: http://api:8000
     - id: database_path
       name: database_path
       label:

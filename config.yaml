@@ -2,7 +2,7 @@
 
 # GithubBot API Configuration
 github_bot_api:
-  base_url: "http://github_bot_api:8000"
+  base_url: "http://api:8000"
   timeout: 30
   retry_attempts: 3
   retry_delay: 5
