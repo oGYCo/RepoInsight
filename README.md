@@ -224,12 +224,6 @@ logging.basicConfig(level=logging.DEBUG)
 
 本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
-## 联系方式
-
-- 项目主页：https://github.com/your-username/RepoInsight
-- 问题反馈：https://github.com/your-username/RepoInsight/issues
-- 邮箱：your-email@example.com
-
 ---
 
 **RepoInsight** - 让代码理解变得简单！
