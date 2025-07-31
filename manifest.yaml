@@ -1,18 +1,197 @@
-name: "RepoInsight"
-description: "GitHub仓库智能分析插件，提供代码问答和仓库洞察功能"
-version: "1.0.0"
-author: "RepoInsight Team"
-homepage: "https://github.com/RepoInsight/RepoInsight"
-pypi: ""
-keywords:
-  - "github"
-  - "repository"
-  - "code analysis"
-  - "ai assistant"
-  - "langbot"
-requirements:
-  - "requests>=2.28.0"
-  - "aiohttp>=3.8.0"
-  - "pydantic>=1.10.0"
-  - "PyYAML>=6.0"
-  - "urllib3"
+apiVersion: v1
+kind: Plugin
+metadata:
+  name: RepoInsight
+  label:
+    en_US: RepoInsight
+    zh_Hans: 代码仓库洞察
+  description:
+    en_US: Analyze GitHub repositories and answer questions about code
+    zh_Hans: 分析 GitHub 代码仓库并回答代码相关问题
+  version: 1.0.0
+  author: RockChinQ
+  homepage: https://github.com/RockChinQ/LangBot-RepoInsight-Plugin
+  keywords:
+    - github
+    - code
+    - analysis
+    - repository
+execution:
+  python:
+    path: main.py
+dependencies:
+  - httpx>=0.24.0
+  - pyyaml>=6.0
+spec:
+  config:
+    - id: embedding_provider
+      name: embedding_provider
+      label:
+        en_US: Embedding Provider
+        zh_Hans: 向量模型提供商
+      type: select
+      required: true
+      default: openai
+      options:
+        - value: openai
+          label:
+            en_US: OpenAI
+            zh_Hans: OpenAI
+        - value: azure
+          label:
+            en_US: Azure OpenAI
+            zh_Hans: Azure OpenAI
+        - value: deepseek
+          label:
+            en_US: DeepSeek
+            zh_Hans: DeepSeek
+    - id: embedding_model
+      name: embedding_model
+      label:
+        en_US: Embedding Model
+        zh_Hans: 向量模型
+      type: string
+      required: true
+      default: text-embedding-3-small
+    - id: embedding_api_key
+      name: embedding_api_key
+      label:
+        en_US: Embedding API Key
+        zh_Hans: 向量模型 API 密钥
+      type: string
+      required: true
+      default: ""
+    - id: embedding_base_url
+      name: embedding_base_url
+      label:
+        en_US: Embedding Base URL
+        zh_Hans: 向量模型基础 URL
+      type: string
+      required: false
+      default: ""
+    - id: max_tokens
+      name: max_tokens
+      label:
+        en_US: Max Tokens
+        zh_Hans: 最大令牌数
+      type: integer
+      required: true
+      default: 8000
+    - id: chunk_size
+      name: chunk_size
+      label:
+        en_US: Chunk Size
+        zh_Hans: 文本块大小
+      type: integer
+      required: true
+      default: 1000
+    - id: chunk_overlap
+      name: chunk_overlap
+      label:
+        en_US: Chunk Overlap
+        zh_Hans: 文本块重叠
+      type: integer
+      required: true
+      default: 200
+    - id: llm_provider
+      name: llm_provider
+      label:
+        en_US: LLM Provider
+        zh_Hans: 语言模型提供商
+      type: select
+      required: true
+      default: openai
+      options:
+        - value: openai
+          label:
+            en_US: OpenAI
+            zh_Hans: OpenAI
+        - value: azure
+          label:
+            en_US: Azure OpenAI
+            zh_Hans: Azure OpenAI
+        - value: deepseek
+          label:
+            en_US: DeepSeek
+            zh_Hans: DeepSeek
+    - id: llm_model
+      name: llm_model
+      label:
+        en_US: LLM Model
+        zh_Hans: 语言模型
+      type: string
+      required: true
+      default: gpt-4o-mini
+    - id: llm_api_key
+      name: llm_api_key
+      label:
+        en_US: LLM API Key
+        zh_Hans: 语言模型 API 密钥
+      type: string
+      required: true
+      default: ""
+    - id: llm_base_url
+      name: llm_base_url
+      label:
+        en_US: LLM Base URL
+        zh_Hans: 语言模型基础 URL
+      type: string
+      required: false
+      default: ""
+    - id: generation_mode
+      name: generation_mode
+      label:
+        en_US: Generation Mode
+        zh_Hans: 生成模式
+      type: select
+      required: true
+      default: service
+      options:
+        - value: service
+          label:
+            en_US: Service (Use GithubBot backend)
+            zh_Hans: 服务端 (使用 GithubBot 后端)
+        - value: plugin
+          label:
+            en_US: Plugin (Use LangBot LLM)
+            zh_Hans: 插件端 (使用 LangBot 语言模型)
+    - id: githubbot_base_url
+      name: githubbot_base_url
+      label:
+        en_US: GithubBot Base URL
+        zh_Hans: GithubBot 基础 URL
+      type: string
+      required: true
+      default: http://localhost:8000
+    - id: database_path
+      name: database_path
+      label:
+        en_US: Database Path
+        zh_Hans: 数据库路径
+      type: string
+      required: true
+      default: repo_insight.db
+    - id: enable_private_chat
+      name: enable_private_chat
+      label:
+        en_US: Enable Private Chat
+        zh_Hans: 启用私聊功能
+      type: boolean
+      required: true
+      default: true
+    - id: enable_group_chat
+      name: enable_group_chat
+      label:
+        en_US: Enable Group Chat
+        zh_Hans: 启用群聊功能
+      type: boolean
+      required: true
+      default: true
+    - id: require_mention_in_group
+      name: require_mention_in_group
+      label:
+        en_US: Require Mention in Group
+        zh_Hans: 群聊中需要@机器人
+      type: boolean
+      required: true
+      default: true

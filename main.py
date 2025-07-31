@@ -22,75 +22,75 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 配置管理器
-class ConfigManager:
-    def __init__(self, config_path: str = "config.yaml"):
-        self.config_path = config_path
-        self.config = self.load_config()
-    
-    def load_config(self) -> Dict[str, Any]:
-        """加载配置文件"""
-        try:
-            if os.path.exists(self.config_path):
-                with open(self.config_path, 'r', encoding='utf-8') as f:
-                    return yaml.safe_load(f)
-            else:
-                logger.warning(f"Config file {self.config_path} not found, using default config")
-                return self.get_default_config()
-        except Exception as e:
-            logger.error(f"Failed to load config: {e}")
-            return self.get_default_config()
-    
-    def get_default_config(self) -> Dict[str, Any]:
-        """获取默认配置"""
-        return {
-            "github_bot_api": {
-                "base_url": "http://github_bot_api:8000",
-                "timeout": 30,
-                "retry_attempts": 3,
-                "retry_delay": 5
-            },
-            "user_session": {
-                "max_sessions_per_user": 5,
-                "session_timeout_hours": 24,
-                "max_question_length": 1000,
-                "cleanup_interval_hours": 24
-            },
-            "database": {
-                "path": "repo_insight.db",
-                "connection_timeout": 30,
-                "max_connections": 10
-            },
-            "polling": {
-                "analysis_status_interval": 10,
-                "query_result_interval": 5,
-                "cleanup_interval": 3600
-            },
-            "logging": {
-                "level": "INFO",
-                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            },
-            "features": {
-                "enable_group_chat": True,
-                "enable_private_chat": True,
-                "require_mention_in_group": True,
-                "auto_cleanup": True
-            }
-        }
-    
-    def get(self, key: str, default=None):
-        """获取配置值"""
-        keys = key.split('.')
-        value = self.config
-        for k in keys:
-            if isinstance(value, dict) and k in value:
-                value = value[k]
-            else:
-                return default
-        return value
+# 配置管理器 - 已迁移到插件配置系统，不再使用
+# class ConfigManager:
+#     def __init__(self, config_path: str = "config.yaml"):
+#         self.config_path = config_path
+#         self.config = self.load_config()
+#     
+#     def load_config(self) -> Dict[str, Any]:
+#         """加载配置文件"""
+#         try:
+#             if os.path.exists(self.config_path):
+#                 with open(self.config_path, 'r', encoding='utf-8') as f:
+#                     return yaml.safe_load(f)
+#             else:
+#                 logger.warning(f"Config file {self.config_path} not found, using default config")
+#                 return self.get_default_config()
+#         except Exception as e:
+#             logger.error(f"Failed to load config: {e}")
+#             return self.get_default_config()
+#     
+#     def get_default_config(self) -> Dict[str, Any]:
+#         """获取默认配置"""
+#         return {
+#             "github_bot_api": {
+#                 "base_url": "http://github_bot_api:8000",
+#                 "timeout": 30,
+#                 "retry_attempts": 3,
+#                 "retry_delay": 5
+#             },
+#             "user_session": {
+#                 "max_sessions_per_user": 5,
+#                 "session_timeout_hours": 24,
+#                 "max_question_length": 1000,
+#                 "cleanup_interval_hours": 24
+#             },
+#             "database": {
+#                 "path": "repo_insight.db",
+#                 "connection_timeout": 30,
+#                 "max_connections": 10
+#             },
+#             "polling": {
+#                 "analysis_status_interval": 10,
+#                 "query_result_interval": 5,
+#                 "cleanup_interval": 3600
+#             },
+#             "logging": {
+#                 "level": "INFO",
+#                 "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+#             },
+#             "features": {
+#                 "enable_group_chat": True,
+#                 "enable_private_chat": True,
+#                 "require_mention_in_group": True,
+#                 "auto_cleanup": True
+#             }
+#         }
+#     
+#     def get(self, key: str, default=None):
+#         """获取配置值"""
+#         keys = key.split('.')
+#         value = self.config
+#         for k in keys:
+#             if isinstance(value, dict) and k in value:
+#                 value = value[k]
+#             else:
+#                 return default
+#         return value
 
 # 初始化配置
-config_manager = ConfigManager()
+# config_manager = ConfigManager()  # 已迁移到插件配置系统，不再使用
 
 # 枚举定义
 class UserState(Enum):
@@ -347,10 +347,10 @@ class GithubBotClient:
 
 # 消息处理器
 class MessageHandler:
-    def __init__(self, state_manager: StateManager, github_client: GithubBotClient):
+    def __init__(self, state_manager: StateManager, github_client: GithubBotClient, plugin_instance):
         self.state_manager = state_manager
         self.github_client = github_client
-        self.config = config_manager
+        self.plugin_instance = plugin_instance
     
     async def handle(self, ctx: EventContext, message: str, user_id: str) -> str:
         """处理用户消息"""
@@ -436,7 +436,7 @@ class MessageHandler:
             return "GithubBot服务暂时不可用，请稍后再试。"
         
         # 获取默认embedding配置
-        embedding_config = self.config.get('default_embedding_config')
+        embedding_config = self.plugin_instance.get_embedding_config()
         
         # 开始分析
         result = await self.github_client.start_analysis(url, embedding_config)
@@ -455,12 +455,12 @@ class MessageHandler:
             return "请先使用 /repo 命令分析一个仓库。"
         
         # 检查问题长度
-        max_length = self.config.get('user_session.max_question_length', 1000)
+        max_length = 2000  # 固定长度限制
         if len(question) > max_length:
             return f"问题太长了，请控制在{max_length}个字符以内。"
         
         # 获取默认LLM配置
-        llm_config = self.config.get('default_llm_config')
+        llm_config = self.plugin_instance.get_llm_config()
         
         # 提交查询请求
         result = await self.github_client.submit_query(session.session_id, question, llm_config)
@@ -480,7 +480,6 @@ class TaskScheduler:
         self.state_manager = state_manager
         self.github_client = github_client
         self.plugin_instance = plugin_instance
-        self.config = config_manager
         self.running = False
         self.tasks = set()
     
@@ -545,7 +544,7 @@ class TaskScheduler:
                                 message = f"❌ 仓库分析失败：{error_msg}\n请使用 /repo 重新开始。"
                                 await self.send_message_to_user(user_id, message)
                 
-                analysis_interval = self.config.get('polling.analysis_status_interval', 10)
+                analysis_interval = 10  # 固定轮询间隔
                 await asyncio.sleep(analysis_interval)
             
             except Exception as e:
@@ -607,7 +606,7 @@ class TaskScheduler:
                                 message = f"❌ 问题处理失败：{error_msg}\n请重新提问。"
                                 await self.send_message_to_user(user_id, message)
                 
-                query_interval = self.config.get('polling.query_result_interval', 5)
+                query_interval = 5  # 固定轮询间隔
                 await asyncio.sleep(query_interval)
             
             except Exception as e:
@@ -618,9 +617,9 @@ class TaskScheduler:
         """清理不活跃用户"""
         while self.running:
             try:
-                cleanup_hours = self.config.get('user_session.session_timeout_hours', 24)
+                cleanup_hours = 24  # 固定清理间隔
                 self.state_manager.cleanup_inactive_sessions(cleanup_hours)
-                cleanup_interval = self.config.get('polling.cleanup_interval', 3600)
+                cleanup_interval = 3600  # 固定清理间隔
                 await asyncio.sleep(cleanup_interval)
             except Exception as e:
                 logger.error(f"Cleanup inactive users error: {e}")
@@ -650,16 +649,68 @@ class RepoInsightPlugin(BasePlugin):
     
     def __init__(self, host: APIHost):
         super().__init__(host)
-        self.config = config_manager
+        # 使用 LangBot 插件配置系统
+        self.plugin_config = {}
+        # LangBot 插件管理器会设置 self.config
+        self.config = {}
         
         # 初始化组件
-        db_path = self.config.get('database.path', 'repo_insight.db')
-        github_base_url = self.config.get('github_bot_api.base_url', 'http://github_bot_api:8000')
+        db_path = self.get_config('database_path', 'repo_insight.db')
+        github_base_url = self.get_githubbot_base_url()
         
         self.state_manager = StateManager(db_path)
         self.github_client = GithubBotClient(github_base_url)
-        self.message_handler = MessageHandler(self.state_manager, self.github_client)
+        self.message_handler = MessageHandler(self.state_manager, self.github_client, self)
         self.task_scheduler = TaskScheduler(self.state_manager, self.github_client, self)
+    
+    def get_config(self, key: str, default=None):
+        """从插件配置中获取值"""
+        # 优先从 self.config 获取（LangBot 插件管理器设置的）
+        if hasattr(self, 'config') and self.config:
+            return self.config.get(key, default)
+        # 备用从 self.plugin_config 获取
+        return self.plugin_config.get(key, default)
+    
+    def get_embedding_config(self):
+        """获取向量模型配置"""
+        return {
+            "provider": self.get_config("embedding_provider", "openai"),
+            "model": self.get_config("embedding_model", "text-embedding-3-small"),
+            "api_key": self.get_config("embedding_api_key", ""),
+            "base_url": self.get_config("embedding_base_url", ""),
+            "max_tokens": self.get_config("max_tokens", 8000),
+            "chunk_size": self.get_config("chunk_size", 1000),
+            "chunk_overlap": self.get_config("chunk_overlap", 200)
+        }
+    
+    def get_llm_config(self):
+        """获取语言模型配置"""
+        return {
+            "provider": self.get_config("llm_provider", "openai"),
+            "model": self.get_config("llm_model", "gpt-4o-mini"),
+            "api_key": self.get_config("llm_api_key", ""),
+            "base_url": self.get_config("llm_base_url", "")
+        }
+    
+    def get_generation_mode(self):
+        """获取生成模式"""
+        return self.get_config("generation_mode", "service")
+    
+    def get_githubbot_base_url(self):
+        """获取 GithubBot 基础 URL"""
+        return self.get_config("githubbot_base_url", "http://localhost:8000")
+    
+    def update_config(self, new_config: dict):
+        """更新插件配置"""
+        self.plugin_config.update(new_config)
+        # 同时更新 self.config（与 LangBot 插件管理器保持一致）
+        if hasattr(self, 'config'):
+            self.config.update(new_config)
+        # 更新 GitHub 客户端的基础 URL
+        new_base_url = self.get_githubbot_base_url()
+        if hasattr(self, 'github_client'):
+            self.github_client.base_url = new_base_url
+        logger.info(f"Plugin config updated: {list(new_config.keys())}")
     
     async def initialize(self):
         """异步初始化"""
@@ -671,7 +722,7 @@ class RepoInsightPlugin(BasePlugin):
     async def person_normal_message_received(self, ctx: EventContext):
         """处理私聊消息"""
         # 检查是否启用私聊功能
-        if not self.config.get('features.enable_private_chat', True):
+        if not self.get_config('enable_private_chat', True):
             return
         
         message = ctx.event.text_message
@@ -690,14 +741,14 @@ class RepoInsightPlugin(BasePlugin):
     async def group_normal_message_received(self, ctx: EventContext):
         """处理群聊消息"""
         # 检查是否启用群聊功能
-        if not self.config.get('features.enable_group_chat', True):
+        if not self.get_config('enable_group_chat', True):
             return
         
         message = ctx.event.text_message
         user_id = str(ctx.event.sender_id)
         
         # 检查是否需要@机器人
-        require_mention = self.config.get('features.require_mention_in_group', True)
+        require_mention = self.get_config('require_mention_in_group', True)
         should_process = False
         
         if message.startswith('/'):
