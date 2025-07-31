@@ -553,7 +553,9 @@ class TaskScheduler:
                     if session.session_id:  # 使用session_id而不是analysis_task_id
                         status = await self.github_client.get_analysis_status(session.session_id)
                         if status:
-                            if status.get('status') == 'completed':
+                            status_value = status.get('status')
+                            
+                            if status_value == 'success':
                                 session.state = UserState.READY_FOR_QUERY
                                 self.state_manager.save_session(session)
                                 
@@ -561,7 +563,7 @@ class TaskScheduler:
                                 message = f"✅ 仓库分析完成！\n仓库：{session.repo_url}\n现在可以开始提问了。请直接发送您的问题。"
                                 await self.send_message_to_user(user_id, message)
                             
-                            elif status.get('status') == 'failed':
+                            elif status_value == 'failed':
                                 session.state = UserState.IDLE
                                 session.repo_url = None
                                 session.analysis_task_id = None
@@ -573,6 +575,19 @@ class TaskScheduler:
                                 # 发送错误通知
                                 error_msg = status.get('error', '未知错误')
                                 message = f"❌ 仓库分析失败：{error_msg}\n请使用 /repo 重新开始。"
+                                await self.send_message_to_user(user_id, message)
+                            
+                            elif status_value == 'cancelled':
+                                session.state = UserState.IDLE
+                                session.repo_url = None
+                                session.analysis_task_id = None
+                                session.question = None
+                                session.query_task_id = None
+                                session.session_id = None
+                                self.state_manager.save_session(session)
+                                
+                                # 发送取消通知
+                                message = f"🛑 仓库分析已被取消\n请使用 /repo 重新开始分析。"
                                 await self.send_message_to_user(user_id, message)
                 
                 analysis_interval = 10  # 固定轮询间隔
@@ -604,7 +619,7 @@ class TaskScheduler:
                         if status_result:
                             status = status_result.get('status')
                             
-                            if status == 'completed':
+                            if status == 'success':
                                 # 获取结果
                                 result = await self.github_client.get_query_result(session.query_task_id)
                                 if result:
@@ -622,7 +637,7 @@ class TaskScheduler:
                                     message = f"💡 **问题**：{question}\n\n📝 **答案**：\n{answer}"
                                     await self.send_message_to_user(user_id, message)
                             
-                            elif status == 'failed':
+                            elif status == 'failure':
                                 error_msg = status_result.get('error', '处理失败')
                                 question = session.question  # 保存问题用于显示
                                 
@@ -633,8 +648,22 @@ class TaskScheduler:
                                 # 保持session_id，用于后续查询
                                 self.state_manager.save_session(session)
                                 
-                                # 发送错误信息
-                                message = f"❌ 问题处理失败：{error_msg}\n请重新提问。"
+                                # 发送错误消息
+                                message = f"❌ **问题**：{question}\n\n**错误**：{error_msg}"
+                                await self.send_message_to_user(user_id, message)
+                            
+                            elif status == 'revoked':
+                                question = session.question  # 保存问题用于显示
+                                
+                                # 更新状态
+                                session.state = UserState.READY_FOR_QUERY
+                                session.question = None
+                                session.query_task_id = None
+                                # 保持session_id，用于后续查询
+                                self.state_manager.save_session(session)
+                                
+                                # 发送取消消息
+                                message = f"🚫 **问题**：{question}\n\n查询任务已被取消。"
                                 await self.send_message_to_user(user_id, message)
                 
                 query_interval = 5  # 固定轮询间隔
