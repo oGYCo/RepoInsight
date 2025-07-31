@@ -22,76 +22,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 配置管理器 - 已迁移到插件配置系统，不再使用
-# class ConfigManager:
-#     def __init__(self, config_path: str = "config.yaml"):
-#         self.config_path = config_path
-#         self.config = self.load_config()
-#     
-#     def load_config(self) -> Dict[str, Any]:
-#         """加载配置文件"""
-#         try:
-#             if os.path.exists(self.config_path):
-#                 with open(self.config_path, 'r', encoding='utf-8') as f:
-#                     return yaml.safe_load(f)
-#             else:
-#                 logger.warning(f"Config file {self.config_path} not found, using default config")
-#                 return self.get_default_config()
-#         except Exception as e:
-#             logger.error(f"Failed to load config: {e}")
-#             return self.get_default_config()
-#     
-#     def get_default_config(self) -> Dict[str, Any]:
-#         """获取默认配置"""
-#         return {
-#             "github_bot_api": {
-#                 "base_url": "http://github_bot_api:8000",
-#                 "timeout": 30,
-#                 "retry_attempts": 3,
-#                 "retry_delay": 5
-#             },
-#             "user_session": {
-#                 "max_sessions_per_user": 5,
-#                 "session_timeout_hours": 24,
-#                 "max_question_length": 1000,
-#                 "cleanup_interval_hours": 24
-#             },
-#             "database": {
-#                 "path": "repo_insight.db",
-#                 "connection_timeout": 30,
-#                 "max_connections": 10
-#             },
-#             "polling": {
-#                 "analysis_status_interval": 10,
-#                 "query_result_interval": 5,
-#                 "cleanup_interval": 3600
-#             },
-#             "logging": {
-#                 "level": "INFO",
-#                 "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-#             },
-#             "features": {
-#                 "enable_group_chat": True,
-#                 "enable_private_chat": True,
-#                 "require_mention_in_group": True,
-#                 "auto_cleanup": True
-#             }
-#         }
-#     
-#     def get(self, key: str, default=None):
-#         """获取配置值"""
-#         keys = key.split('.')
-#         value = self.config
-#         for k in keys:
-#             if isinstance(value, dict) and k in value:
-#                 value = value[k]
-#             else:
-#                 return default
-#         return value
-
-# 初始化配置
-# config_manager = ConfigManager()  # 已迁移到插件配置系统，不再使用
-
 # 枚举定义
 class UserState(Enum):
     IDLE = "idle"
@@ -735,11 +665,15 @@ class RepoInsightPlugin(BasePlugin):
     
     def get_embedding_config(self):
         """获取向量模型配置"""
-        return {
+        config = {
             "provider": self.get_config("embedding_provider", "openai"),
             "model_name": self.get_config("embedding_model", "text-embedding-3-small"),
             "api_key": self.get_config("embedding_api_key", "")
         }
+        logger.info(f"🔍 [调试] RepoInsight插件 - 获取的embedding配置: {config}")
+        logger.info(f"🔍 [调试] RepoInsight插件 - self.config内容: {getattr(self, 'config', None)}")
+        logger.info(f"🔍 [调试] RepoInsight插件 - self.plugin_config内容: {getattr(self, 'plugin_config', None)}")
+        return config
     
     def get_llm_config(self):
         """获取语言模型配置"""
