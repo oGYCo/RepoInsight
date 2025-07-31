@@ -1,11 +1,5 @@
 requests>=2.31.0
 aiohttp>=3.8.0
 pydantic>=2.0.0
-sqlite3
-asyncio
-re
 urllib3
-datetime
-typing
-json
-logging
+yaml

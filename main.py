@@ -8,13 +8,87 @@ import sqlite3
 import json
 import re
 import logging
+import yaml
+import os
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 from urllib.parse import urlparse
 from enum import Enum
 
-# 配置日志
-logging.basicConfig(level=logging.INFO)
+# 配置管理器
+class ConfigManager:
+    def __init__(self, config_path: str = "config.yaml"):
+        self.config_path = config_path
+        self.config = self.load_config()
+    
+    def load_config(self) -> Dict[str, Any]:
+        """加载配置文件"""
+        try:
+            if os.path.exists(self.config_path):
+                with open(self.config_path, 'r', encoding='utf-8') as f:
+                    return yaml.safe_load(f)
+            else:
+                logger.warning(f"Config file {self.config_path} not found, using default config")
+                return self.get_default_config()
+        except Exception as e:
+            logger.error(f"Failed to load config: {e}")
+            return self.get_default_config()
+    
+    def get_default_config(self) -> Dict[str, Any]:
+        """获取默认配置"""
+        return {
+            "github_bot_api": {
+                "base_url": "http://localhost:8000",
+                "timeout": 30,
+                "retry_attempts": 3,
+                "retry_delay": 5
+            },
+            "user_session": {
+                "max_sessions_per_user": 5,
+                "session_timeout_hours": 24,
+                "max_question_length": 1000,
+                "cleanup_interval_hours": 24
+            },
+            "database": {
+                "path": "repo_insight.db",
+                "connection_timeout": 30,
+                "max_connections": 10
+            },
+            "polling": {
+                "analysis_status_interval": 10,
+                "query_result_interval": 5,
+                "cleanup_interval": 3600
+            },
+            "logging": {
+                "level": "INFO",
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            },
+            "features": {
+                "enable_group_chat": True,
+                "enable_private_chat": True,
+                "require_mention_in_group": True,
+                "auto_cleanup": True
+            }
+        }
+    
+    def get(self, key: str, default=None):
+        """获取配置值"""
+        keys = key.split('.')
+        value = self.config
+        for k in keys:
+            if isinstance(value, dict) and k in value:
+                value = value[k]
+            else:
+                return default
+        return value
+
+# 初始化配置和日志
+config_manager = ConfigManager()
+logging_config = config_manager.get('logging', {})
+logging.basicConfig(
+    level=getattr(logging, logging_config.get('level', 'INFO')),
+    format=logging_config.get('format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+)
 logger = logging.getLogger(__name__)
 
 # 枚举定义
@@ -22,7 +96,7 @@ class UserState(Enum):
     IDLE = "idle"
     WAITING_FOR_REPO = "waiting_for_repo"
     ANALYZING = "analyzing"
-    READY_FOR_QUESTIONS = "ready_for_questions"
+    READY_FOR_QUERY = "ready_for_query"
     WAITING_FOR_ANSWER = "waiting_for_answer"
 
 class TaskStatus(Enum):
@@ -35,13 +109,14 @@ class TaskStatus(Enum):
 class UserSession:
     def __init__(self, user_id: str, state: UserState = UserState.IDLE, 
                  repo_url: str = None, analysis_task_id: str = None,
-                 question: str = None, query_task_id: str = None):
+                 question: str = None, query_task_id: str = None, session_id: str = None):
         self.user_id = user_id
         self.state = state
         self.repo_url = repo_url
         self.analysis_task_id = analysis_task_id
         self.question = question
         self.query_task_id = query_task_id
+        self.session_id = session_id  # 新增session_id字段
         self.last_activity = datetime.now()
     
     def to_dict(self):
@@ -52,6 +127,7 @@ class UserSession:
             'analysis_task_id': self.analysis_task_id,
             'question': self.question,
             'query_task_id': self.query_task_id,
+            'session_id': self.session_id,
             'last_activity': self.last_activity.isoformat()
         }
     
@@ -63,7 +139,8 @@ class UserSession:
             repo_url=data.get('repo_url'),
             analysis_task_id=data.get('analysis_task_id'),
             question=data.get('question'),
-            query_task_id=data.get('query_task_id')
+            query_task_id=data.get('query_task_id'),
+            session_id=data.get('session_id')
         )
         if data.get('last_activity'):
             session.last_activity = datetime.fromisoformat(data['last_activity'])
@@ -87,6 +164,7 @@ class StateManager:
                 analysis_task_id TEXT,
                 question TEXT,
                 query_task_id TEXT,
+                session_id TEXT,
                 last_activity TEXT NOT NULL
             )
         """)
@@ -109,7 +187,8 @@ class StateManager:
                 'analysis_task_id': row[3],
                 'question': row[4],
                 'query_task_id': row[5],
-                'last_activity': row[6]
+                'session_id': row[6],
+                'last_activity': row[7]
             }
             return UserSession.from_dict(data)
         else:
@@ -121,8 +200,8 @@ class StateManager:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT OR REPLACE INTO user_sessions 
-            (user_id, state, repo_url, analysis_task_id, question, query_task_id, last_activity)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (user_id, state, repo_url, analysis_task_id, question, query_task_id, session_id, last_activity)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             session.user_id,
             session.state.value,
@@ -130,6 +209,7 @@ class StateManager:
             session.analysis_task_id,
             session.question,
             session.query_task_id,
+            session.session_id,
             session.last_activity.isoformat()
         ))
         conn.commit()
@@ -163,21 +243,26 @@ class GithubBotClient:
         """健康检查"""
         try:
             session = await self._get_session()
-            async with session.get(f"{self.base_url}/health") as response:
+            async with session.get(f"{self.base_url}/api/health") as response:
                 return response.status == 200
         except Exception as e:
             logger.error(f"Health check failed: {e}")
             return False
     
-    async def start_analysis(self, repo_url: str) -> Optional[str]:
+    async def start_analysis(self, repo_url: str, embedding_config: Optional[Dict] = None) -> Optional[Dict]:
         """开始仓库分析"""
         try:
             session = await self._get_session()
             data = {"repo_url": repo_url}
-            async with session.post(f"{self.base_url}/analyze", json=data) as response:
+            if embedding_config:
+                data["embedding_config"] = embedding_config
+            async with session.post(f"{self.base_url}/api/v1/repos/analyze", json=data) as response:
                 if response.status == 200:
                     result = await response.json()
-                    return result.get("task_id")
+                    return {
+                        "session_id": result.get("session_id"),
+                        "task_id": result.get("task_id")
+                    }
                 else:
                     logger.error(f"Analysis start failed: {response.status}")
                     return None
@@ -185,11 +270,11 @@ class GithubBotClient:
             logger.error(f"Start analysis error: {e}")
             return None
     
-    async def get_analysis_status(self, task_id: str) -> Optional[Dict]:
+    async def get_analysis_status(self, session_id: str) -> Optional[Dict]:
         """获取分析状态"""
         try:
             session = await self._get_session()
-            async with session.get(f"{self.base_url}/analyze/{task_id}/status") as response:
+            async with session.get(f"{self.base_url}/api/v1/repos/status/{session_id}") as response:
                 if response.status == 200:
                     return await response.json()
                 else:
@@ -199,30 +284,51 @@ class GithubBotClient:
             logger.error(f"Get analysis status error: {e}")
             return None
     
-    async def ask_question(self, repo_url: str, question: str) -> Optional[str]:
-        """提问"""
+    async def submit_query(self, analysis_session_id: str, question: str, llm_config: Optional[Dict] = None) -> Optional[Dict]:
+        """提交查询请求"""
         try:
             session = await self._get_session()
             data = {
-                "repo_url": repo_url,
-                "question": question
+                "session_id": analysis_session_id,
+                "question": question,
+                "generation_mode": "plugin"
             }
-            async with session.post(f"{self.base_url}/query", json=data) as response:
+            if llm_config:
+                data["llm_config"] = llm_config
+            
+            async with session.post(f"{self.base_url}/api/v1/repos/query", json=data) as response:
                 if response.status == 200:
                     result = await response.json()
-                    return result.get("task_id")
+                    return {
+                        "session_id": result.get("session_id"),
+                        "task_id": result.get("task_id")
+                    }
                 else:
-                    logger.error(f"Ask question failed: {response.status}")
+                    logger.error(f"Submit query failed: {response.status}")
                     return None
         except Exception as e:
-            logger.error(f"Ask question error: {e}")
+            logger.error(f"Submit query error: {e}")
             return None
     
-    async def get_query_result(self, task_id: str) -> Optional[Dict]:
+    async def get_query_status(self, session_id: str) -> Optional[Dict]:
+        """获取查询状态"""
+        try:
+            session = await self._get_session()
+            async with session.get(f"{self.base_url}/api/v1/repos/query/status/{session_id}") as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    logger.error(f"Get query status failed: {response.status}")
+                    return None
+        except Exception as e:
+            logger.error(f"Get query status error: {e}")
+            return None
+    
+    async def get_query_result(self, session_id: str) -> Optional[Dict]:
         """获取查询结果"""
         try:
             session = await self._get_session()
-            async with session.get(f"{self.base_url}/query/{task_id}/result") as response:
+            async with session.get(f"{self.base_url}/api/v1/repos/query/result/{session_id}") as response:
                 if response.status == 200:
                     return await response.json()
                 else:
@@ -243,6 +349,7 @@ class MessageHandler:
     def __init__(self, state_manager: StateManager, github_client: GithubBotClient):
         self.state_manager = state_manager
         self.github_client = github_client
+        self.config = config_manager
     
     async def handle(self, ctx: EventContext, message: str, user_id: str) -> str:
         """处理用户消息"""
@@ -256,8 +363,10 @@ class MessageHandler:
             # 根据状态处理消息
             if session.state == UserState.WAITING_FOR_REPO:
                 response = await self.handle_repo_url(session, message)
-            elif session.state == UserState.READY_FOR_QUESTIONS:
+            elif session.state == UserState.READY_FOR_QUERY:
                 response = await self.handle_question(session, message, ctx)
+            elif session.state == UserState.WAITING_FOR_ANSWER:
+                response = "正在处理您的问题，请稍候..."
             else:
                 response = "请使用 /repo 命令开始分析GitHub仓库，或使用 /help 查看帮助信息。"
         
@@ -276,6 +385,7 @@ class MessageHandler:
             session.analysis_task_id = None
             session.question = None
             session.query_task_id = None
+            session.session_id = None
             return "已退出当前会话，使用 /repo 开始新的分析。"
         
         elif command == "/status":
@@ -285,7 +395,7 @@ class MessageHandler:
                 return "当前状态：等待仓库URL\n请发送GitHub仓库URL"
             elif session.state == UserState.ANALYZING:
                 return f"当前状态：正在分析仓库\n仓库：{session.repo_url}\n请稍候..."
-            elif session.state == UserState.READY_FOR_QUESTIONS:
+            elif session.state == UserState.READY_FOR_QUERY:
                 return f"当前状态：准备就绪\n仓库：{session.repo_url}\n可以开始提问了！"
             elif session.state == UserState.WAITING_FOR_ANSWER:
                 return f"当前状态：等待回答\n问题：{session.question}\n正在处理中..."
@@ -324,28 +434,42 @@ class MessageHandler:
         if not await self.github_client.health_check():
             return "GithubBot服务暂时不可用，请稍后再试。"
         
+        # 获取默认embedding配置
+        embedding_config = self.config.get('default_embedding_config')
+        
         # 开始分析
-        task_id = await self.github_client.start_analysis(url)
-        if task_id:
+        result = await self.github_client.start_analysis(url, embedding_config)
+        if result and result.get("session_id"):
             session.state = UserState.ANALYZING
             session.repo_url = url
-            session.analysis_task_id = task_id
-            return f"开始分析仓库：{url}\n任务ID：{task_id}\n请稍候，分析完成后会自动通知您。"
+            session.analysis_task_id = result.get("task_id")
+            session.session_id = result.get("session_id")  # 保存分析会话ID
+            return f"✅ 已收到仓库链接，正在请求分析，请稍候... 这可能需要几分钟时间。\n仓库：{url}\n会话ID：{session.session_id}"
         else:
             return "启动分析失败，请检查仓库URL是否正确或稍后再试。"
     
     async def handle_question(self, session: UserSession, question: str, ctx: EventContext) -> str:
         """处理问题（异步）"""
-        if not session.repo_url:
+        if not session.session_id:
             return "请先使用 /repo 命令分析一个仓库。"
         
-        # 开始查询
-        task_id = await self.github_client.ask_question(session.repo_url, question)
-        if task_id:
+        # 检查问题长度
+        max_length = self.config.get('user_session.max_question_length', 1000)
+        if len(question) > max_length:
+            return f"问题太长了，请控制在{max_length}个字符以内。"
+        
+        # 获取默认LLM配置
+        llm_config = self.config.get('default_llm_config')
+        
+        # 提交查询请求
+        result = await self.github_client.submit_query(session.session_id, question, llm_config)
+        if result and result.get("session_id"):
             session.state = UserState.WAITING_FOR_ANSWER
             session.question = question
-            session.query_task_id = task_id
-            return f"正在处理您的问题：{question}\n任务ID：{task_id}\n请稍候，处理完成后会自动回复您。"
+            session.query_task_id = result.get("task_id")
+            # 注意：这里的session_id是查询会话ID，不同于分析会话ID
+            query_session_id = result.get("session_id")
+            return f"✅ 已收到您的问题：\"{question}\"\n正在为您查找答案，请稍候... 答案准备好后会立即通知您。\n查询会话ID：{query_session_id}"
         else:
             return "提问失败，请稍后再试。"
 
@@ -355,6 +479,7 @@ class TaskScheduler:
         self.state_manager = state_manager
         self.github_client = github_client
         self.plugin_instance = plugin_instance
+        self.config = config_manager
         self.running = False
         self.tasks = set()
     
@@ -394,29 +519,33 @@ class TaskScheduler:
                 
                 for user_id in user_ids:
                     session = self.state_manager.get_session(user_id)
-                    if session.analysis_task_id:
-                        status = await self.github_client.get_analysis_status(session.analysis_task_id)
+                    if session.session_id:  # 使用session_id而不是analysis_task_id
+                        status = await self.github_client.get_analysis_status(session.session_id)
                         if status:
                             if status.get('status') == 'completed':
-                                session.state = UserState.READY_FOR_QUESTIONS
+                                session.state = UserState.READY_FOR_QUERY
                                 self.state_manager.save_session(session)
                                 
                                 # 发送通知
-                                message = f"仓库分析完成！\n仓库：{session.repo_url}\n现在可以开始提问了。"
+                                message = f"✅ 仓库分析完成！\n仓库：{session.repo_url}\n现在可以开始提问了。请直接发送您的问题。"
                                 await self.send_message_to_user(user_id, message)
                             
                             elif status.get('status') == 'failed':
                                 session.state = UserState.IDLE
                                 session.repo_url = None
                                 session.analysis_task_id = None
+                                session.question = None
+                                session.query_task_id = None
+                                session.session_id = None
                                 self.state_manager.save_session(session)
                                 
                                 # 发送错误通知
                                 error_msg = status.get('error', '未知错误')
-                                message = f"仓库分析失败：{error_msg}\n请使用 /repo 重新开始。"
+                                message = f"❌ 仓库分析失败：{error_msg}\n请使用 /repo 重新开始。"
                                 await self.send_message_to_user(user_id, message)
                 
-                await asyncio.sleep(10)  # 每10秒检查一次
+                analysis_interval = self.config.get('polling.analysis_status_interval', 10)
+                await asyncio.sleep(analysis_interval)
             
             except Exception as e:
                 logger.error(f"Poll analysis status error: {e}")
@@ -438,34 +567,47 @@ class TaskScheduler:
                 
                 for user_id in user_ids:
                     session = self.state_manager.get_session(user_id)
-                    if session.query_task_id:
-                        result = await self.github_client.get_query_result(session.query_task_id)
-                        if result:
-                            status = result.get('status')
+                    if session.query_task_id:  # 使用query_task_id查询状态
+                        # 先查询状态
+                        status_result = await self.github_client.get_query_status(session.query_task_id)
+                        if status_result:
+                            status = status_result.get('status')
                             
                             if status == 'completed':
-                                answer = result.get('answer', '无法获取答案')
-                                session.state = UserState.READY_FOR_QUESTIONS
-                                session.question = None
-                                session.query_task_id = None
-                                self.state_manager.save_session(session)
-                                
-                                # 发送答案
-                                message = f"问题：{session.question}\n\n答案：{answer}"
-                                await self.send_message_to_user(user_id, message)
+                                # 获取结果
+                                result = await self.github_client.get_query_result(session.query_task_id)
+                                if result:
+                                    answer = result.get('answer', '无法获取答案')
+                                    question = session.question  # 保存问题用于显示
+                                    
+                                    # 更新状态
+                                    session.state = UserState.READY_FOR_QUERY
+                                    session.question = None
+                                    session.query_task_id = None
+                                    # 保持session_id，用于后续查询
+                                    self.state_manager.save_session(session)
+                                    
+                                    # 发送答案
+                                    message = f"💡 **问题**：{question}\n\n📝 **答案**：\n{answer}"
+                                    await self.send_message_to_user(user_id, message)
                             
                             elif status == 'failed':
-                                error_msg = result.get('error', '处理失败')
-                                session.state = UserState.READY_FOR_QUESTIONS
+                                error_msg = status_result.get('error', '处理失败')
+                                question = session.question  # 保存问题用于显示
+                                
+                                # 更新状态
+                                session.state = UserState.READY_FOR_QUERY
                                 session.question = None
                                 session.query_task_id = None
+                                # 保持session_id，用于后续查询
                                 self.state_manager.save_session(session)
                                 
                                 # 发送错误信息
-                                message = f"问题处理失败：{error_msg}\n请重新提问。"
+                                message = f"❌ 问题处理失败：{error_msg}\n请重新提问。"
                                 await self.send_message_to_user(user_id, message)
                 
-                await asyncio.sleep(5)  # 每5秒检查一次
+                query_interval = self.config.get('polling.query_result_interval', 5)
+                await asyncio.sleep(query_interval)
             
             except Exception as e:
                 logger.error(f"Poll query results error: {e}")
@@ -475,8 +617,10 @@ class TaskScheduler:
         """清理不活跃用户"""
         while self.running:
             try:
-                self.state_manager.cleanup_inactive_sessions(24)  # 清理24小时不活跃的会话
-                await asyncio.sleep(3600)  # 每小时清理一次
+                cleanup_hours = self.config.get('user_session.session_timeout_hours', 24)
+                self.state_manager.cleanup_inactive_sessions(cleanup_hours)
+                cleanup_interval = self.config.get('polling.cleanup_interval', 3600)
+                await asyncio.sleep(cleanup_interval)
             except Exception as e:
                 logger.error(f"Cleanup inactive users error: {e}")
                 await asyncio.sleep(3600)
@@ -505,8 +649,14 @@ class RepoInsightPlugin(BasePlugin):
     
     def __init__(self, host: APIHost):
         super().__init__(host)
-        self.state_manager = StateManager()
-        self.github_client = GithubBotClient()
+        self.config = config_manager
+        
+        # 初始化组件
+        db_path = self.config.get('database.path', 'repo_insight.db')
+        github_base_url = self.config.get('github_bot_api.base_url', 'http://localhost:8000')
+        
+        self.state_manager = StateManager(db_path)
+        self.github_client = GithubBotClient(github_base_url)
         self.message_handler = MessageHandler(self.state_manager, self.github_client)
         self.task_scheduler = TaskScheduler(self.state_manager, self.github_client, self)
     
@@ -519,6 +669,10 @@ class RepoInsightPlugin(BasePlugin):
     @handler(PersonNormalMessageReceived)
     async def person_normal_message_received(self, ctx: EventContext):
         """处理私聊消息"""
+        # 检查是否启用私聊功能
+        if not self.config.get('features.enable_private_chat', True):
+            return
+        
         message = ctx.event.text_message
         user_id = str(ctx.event.sender_id)
         
@@ -534,11 +688,25 @@ class RepoInsightPlugin(BasePlugin):
     @handler(GroupNormalMessageReceived)
     async def group_normal_message_received(self, ctx: EventContext):
         """处理群聊消息"""
+        # 检查是否启用群聊功能
+        if not self.config.get('features.enable_group_chat', True):
+            return
+        
         message = ctx.event.text_message
         user_id = str(ctx.event.sender_id)
         
-        # 只处理@机器人或以/开头的消息
-        if message.startswith('/') or '@' in message:
+        # 检查是否需要@机器人
+        require_mention = self.config.get('features.require_mention_in_group', True)
+        should_process = False
+        
+        if message.startswith('/'):
+            should_process = True
+        elif require_mention and '@' in message:
+            should_process = True
+        elif not require_mention:
+            should_process = True
+        
+        if should_process:
             try:
                 response = await self.message_handler.handle(ctx, message, user_id)
                 ctx.add_return("reply", [response])

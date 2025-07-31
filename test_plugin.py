@@ -101,10 +101,12 @@ class TestGithubBotClient(unittest.TestCase):
         with patch('aiohttp.ClientSession.get') as mock_get:
             mock_response = AsyncMock()
             mock_response.status = 200
+            mock_response.json = AsyncMock(return_value={"status": "healthy"})
             mock_get.return_value.__aenter__.return_value = mock_response
             
             result = await self.client.health_check()
             self.assertTrue(result)
+            mock_get.assert_called_once_with("http://test-server:8000/api/health")
     
     async def test_health_check_failure(self):
         """测试健康检查失败"""
@@ -121,11 +123,18 @@ class TestGithubBotClient(unittest.TestCase):
         with patch('aiohttp.ClientSession.post') as mock_post:
             mock_response = AsyncMock()
             mock_response.status = 200
-            mock_response.json.return_value = {"task_id": "task123"}
+            mock_response.json = AsyncMock(return_value={
+                "session_id": "session123",
+                "task_id": "task123",
+                "status": "pending"
+            })
             mock_post.return_value.__aenter__.return_value = mock_response
             
-            task_id = await self.client.start_analysis("https://github.com/test/repo")
-            self.assertEqual(task_id, "task123")
+            embedding_config = {"provider": "openai", "model": "text-embedding-ada-002"}
+            result = await self.client.start_analysis("https://github.com/test/repo", embedding_config)
+            self.assertEqual(result["session_id"], "session123")
+            self.assertEqual(result["task_id"], "task123")
+            mock_post.assert_called_once()
 
 class TestMessageHandler(unittest.TestCase):
     """测试消息处理器"""

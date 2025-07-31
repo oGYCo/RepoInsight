@@ -87,26 +87,46 @@ RepoInsight 是一个为 LangBot 设计的智能GitHub仓库分析插件。它�
 
 ## 配置说明
 
-插件配置文件 `config.json` 包含以下选项：
+插件使用 `config.yaml` 文件进行配置：
 
-```json
-{
-  "github_bot": {
-    "base_url": "http://localhost:8000",  // GithubBot服务地址
-    "timeout": 30,                        // 请求超时时间
-    "retry_attempts": 3,                  // 重试次数
-    "retry_delay": 5                      // 重试延迟
-  },
-  "database": {
-    "path": "repo_insight.db",            // 数据库文件路径
-    "cleanup_hours": 24                   // 会话清理时间
-  },
-  "polling": {
-    "analysis_interval": 10,              // 分析状态轮询间隔
-    "query_interval": 5,                  // 查询结果轮询间隔
-    "cleanup_interval": 3600              // 清理任务间隔
-  }
-}
+```yaml
+# GithubBot API Configuration
+github_bot_api:
+  base_url: "http://localhost:8000"
+  timeout: 30
+  retry_attempts: 3
+  retry_delay: 5
+
+# User Session Configuration
+user_session:
+  max_sessions_per_user: 5
+  session_timeout_hours: 24
+  max_question_length: 1000
+  cleanup_interval_hours: 24
+
+# Database Configuration
+database:
+  path: "repo_insight.db"
+  connection_timeout: 30
+  max_connections: 10
+
+# Polling Configuration
+polling:
+  analysis_status_interval: 10
+  query_result_interval: 5
+  cleanup_interval: 3600
+
+# Feature Flags
+features:
+  enable_group_chat: true
+  enable_private_chat: true
+  require_mention_in_group: true
+  auto_cleanup: true
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 ```
 
 ## 技术架构
@@ -140,10 +160,11 @@ IDLE → WAITING_FOR_REPO → ANALYZING → READY_FOR_QUESTIONS → WAITING_FOR_
 插件需要配合GithubBot服务使用，该服务提供以下API：
 
 - `GET /health` - 健康检查
-- `POST /analyze` - 开始仓库分析
-- `GET /analyze/{task_id}/status` - 获取分析状态
-- `POST /query` - 提交问题
-- `GET /query/{task_id}/result` - 获取查询结果
+- `POST /api/v1/repos/analyze` - 开始仓库分析
+- `GET /api/v1/repos/analyze/status/{session_id}` - 获取分析状态
+- `POST /api/v1/repos/query` - 提交问题
+- `GET /api/v1/repos/query/status/{session_id}` - 获取查询状态
+- `GET /api/v1/repos/query/result/{session_id}` - 获取查询结果
 
 ### 环境要求
 
