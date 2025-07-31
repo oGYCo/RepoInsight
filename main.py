@@ -706,7 +706,7 @@ class TaskScheduler:
             logger.error(f"Send message to user {user_id} failed: {e}")
 
 # 主插件类
-@register(name="RepoInsight", description="GitHub仓库智能分析插件", version="1.0.0", author="RepoInsight Team")
+@register(name="RepoInsight", description="GitHub仓库智能分析插件", version="1.0.0", author="oGYCo")
 class RepoInsightPlugin(BasePlugin):
     
     def __init__(self, host: APIHost):
