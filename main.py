@@ -339,6 +339,20 @@ class GithubBotClient:
             logger.error(f"Get query result error: {e}")
             return None
     
+    async def cancel_analysis(self, session_id: str) -> Optional[Dict]:
+        """取消仓库分析任务"""
+        try:
+            session = await self._get_session()
+            async with session.post(f"{self.base_url}/api/v1/repos/analyze/{session_id}/cancel") as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    logger.error(f"Cancel analysis failed: {response.status}")
+                    return None
+        except Exception as e:
+            logger.error(f"Cancel analysis error: {e}")
+            return None
+    
     async def close(self):
         """关闭HTTP会话"""
         if self.session:
@@ -401,12 +415,29 @@ class MessageHandler:
             elif session.state == UserState.WAITING_FOR_ANSWER:
                 return f"当前状态：等待回答\n问题：{session.question}\n正在处理中..."
         
+        elif command == "/cancel":
+            if session.state == UserState.ANALYZING and session.session_id:
+                # 取消分析任务
+                result = await self.github_client.cancel_analysis(session.session_id)
+                if result:
+                    # 重置会话状态
+                    session.state = UserState.IDLE
+                    session.repo_url = None
+                    session.analysis_task_id = None
+                    session.session_id = None
+                    return "✅ 已成功取消分析任务。使用 /repo 开始新的分析。"
+                else:
+                    return "❌ 取消分析任务失败，请稍后再试。"
+            else:
+                return "当前没有正在进行的分析任务可以取消。"
+        
         elif command == "/help":
             return (
                 "RepoInsight - GitHub仓库智能分析助手\n\n"
                 "可用指令：\n"
                 "/repo - 开始分析新的GitHub仓库\n"
                 "/status - 查看当前状态\n"
+                "/cancel - 取消当前分析任务\n"
                 "/exit - 退出当前会话\n"
                 "/help - 显示帮助信息\n\n"
                 "使用流程：\n"
