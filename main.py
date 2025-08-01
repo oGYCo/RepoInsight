@@ -215,14 +215,14 @@ class GithubBotClient:
             logger.error(f"Get analysis status error: {e}")
             return None
     
-    async def submit_query(self, analysis_session_id: str, question: str, llm_config: Optional[Dict] = None) -> Optional[Dict]:
+    async def submit_query(self, analysis_session_id: str, question: str, llm_config: Optional[Dict] = None, generation_mode: str = "service") -> Optional[Dict]:
         """提交查询请求"""
         try:
             session = await self._get_session()
             data = {
                 "session_id": analysis_session_id,
                 "question": question,
-                "generation_mode": "plugin"
+                "generation_mode": generation_mode
             }
             if llm_config:
                 data["llm_config"] = llm_config
@@ -420,11 +420,12 @@ class MessageHandler:
         if len(question) > max_length:
             return f"问题太长了，请控制在{max_length}个字符以内。"
         
-        # 获取默认LLM配置
-        llm_config = self.plugin_instance.get_llm_config()
+        # 获取生成模式和LLM配置
+        generation_mode = self.plugin_instance.get_generation_mode()
+        llm_config = self.plugin_instance.get_llm_config() if generation_mode == "service" else None
         
         # 提交查询请求
-        result = await self.github_client.submit_query(session.session_id, question, llm_config)
+        result = await self.github_client.submit_query(session.session_id, question, llm_config, generation_mode)
         if result and result.get("session_id"):
             session.state = UserState.WAITING_FOR_ANSWER
             session.question = question
@@ -553,8 +554,21 @@ class TaskScheduler:
                                 # 获取结果
                                 result = await self.github_client.get_query_result(session.query_task_id)
                                 if result:
-                                    answer = result.get('answer', '无法获取答案')
                                     question = session.question  # 保存问题用于显示
+                                    generation_mode = self.plugin_instance.get_generation_mode()
+                                    
+                                    if generation_mode == "service":
+                                        # 服务端模式：直接使用返回的答案
+                                        answer = result.get('answer', '无法获取答案')
+                                    else:
+                                        # 插件模式：使用返回的上下文生成答案
+                                        retrieved_context = result.get('retrieved_context', [])
+                                        if retrieved_context:
+                                            # 构建上下文字符串
+                                            context_str = "\n\n".join([chunk.get('content', '') for chunk in retrieved_context])
+                                            answer = f"根据代码库分析，以下是相关信息：\n\n{context_str}\n\n针对您的问题：{question}\n\n请注意，这是基于检索到的代码片段提供的信息，可能需要结合具体上下文进行理解。"
+                                        else:
+                                            answer = "抱歉，没有找到相关的代码信息来回答您的问题。"
                                     
                                     # 更新状态
                                     session.state = UserState.READY_FOR_QUERY
