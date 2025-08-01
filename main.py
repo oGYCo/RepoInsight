@@ -666,8 +666,8 @@ class RepoInsightPlugin(BasePlugin):
     def get_embedding_config(self):
         """获取向量模型配置"""
         config = {
-            "provider": self.get_config("embedding_provider", "openai"),
-            "model_name": self.get_config("embedding_model", "text-embedding-3-small"),
+            "provider": self.get_config("embedding_provider", "qwen"),
+            "model_name": self.get_config("embedding_model", "text-embedding-v4"),
             "api_key": self.get_config("embedding_api_key", "")
         }
         logger.info(f"🔍 [调试] RepoInsight插件 - 获取的embedding配置: {config}")
@@ -678,8 +678,8 @@ class RepoInsightPlugin(BasePlugin):
     def get_llm_config(self):
         """获取语言模型配置"""
         return {
-            "provider": self.get_config("llm_provider", "openai"),
-            "model_name": self.get_config("llm_model", "gpt-4o-mini"),
+            "provider": self.get_config("llm_provider", "qwen"),
+            "model_name": self.get_config("llm_model", "qwen-plus"),
             "api_key": self.get_config("llm_api_key", ""),
             "max_tokens": self.get_config("llm_max_tokens", 4096),
             "temperature": self.get_config("llm_temperature", 0.7)
